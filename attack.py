@@ -25,7 +25,7 @@ BOOL_TO_STATUS = ('attacked', 'D O N E')
 def print_art(file_name):
     with open(file_name) as f:
         for line in f:
-            print line
+            print line,
 
 
 class Status(object):
@@ -43,7 +43,7 @@ class Status(object):
         self.port = port
         self.number = number_
         self.status_chk = threading.Thread(target=self.status_checker)
-        self.status_prn = threading.Timer(0, self.status_printer)
+        self.status_prn = threading.Thread(target=self.status_printer)
         self.should_stop = False
         self.thread_start = False
         self.socket = socket.socket()
@@ -75,11 +75,12 @@ class Status(object):
         """ shut down the fun. """
         self.socket.close()
         self.should_stop = True
-        self.status_prn.cancel()
 
         if self.thread_start:
+            self.status_prn.join()
             self.status_chk.join()
             self.thread_start = False
+            self.status_printer()
 
     @property
     def ips_to_attack(self):
@@ -114,11 +115,9 @@ class Status(object):
                          for k, v in ips_.iteritems()}
         print '\n'
         # print the art
-        with open('evil.txt') as f:
-            for line in f:
-                print line,
+        print_art('evil.txt')
         print ''
-        print 'Press any key to start the attack'.center(62, ' ')
+        print 'Press any key to start the attack'.center(62)
         raw_input()
 
     def status_printer(self):
@@ -126,23 +125,25 @@ class Status(object):
         def separate():
             print '|{0}+{1}+{2}+{2}|'.format('-' * 31, '-' * 15, '-' * 14)
 
-        clear_screen()
-        print '|{}|{}|{}|{}|'.format('Name'.center(31, ' '),
-                                     'IP'.center(15, ' '),
-                                     'Status'.center(14, ' '),
-                                     'Time'.center(14, ' '))
-        separate()
-        for ip_, v in self.statuses.iteritems():
-            print '| {:<30}|{:<15}|{:<14}|{:<14}|'.format(
-                v['name'], ip_,
-                BOOL_TO_STATUS[v['done']].title().center(14, ' '),
-                '{}s'.format(v['time']).center(14, ' ')
-            )
+        def elapsed_time(data):
+            res = ''
+            if data['done']:
+                res = '{}s'.format(data['time'])
+            return res.center(14)
+
+        while not self.should_stop:
+            clear_screen()
+            print '|{}|{}|{}|{}|'.format('Name'.center(31), 'IP'.center(15),
+                                         'Status'.center(14), 'Time'.center(14))
             separate()
-
-        print self.ips_to_attack  # TODO: delete it!
-
-        threading.Timer(2, self.status_printer).start()
+            for ip_, v in self.statuses.iteritems():
+                print '| {:<30}|{:<15}|{:<14}|{:<14}|'.format(
+                    v['name'], ip_,
+                    BOOL_TO_STATUS[v['done']].title().center(14),
+                    elapsed_time(v)
+                )
+                separate()
+            time.sleep(2)
 
     def status_checker(self):
         """
@@ -150,9 +151,9 @@ class Status(object):
         MUST USE THE check_answer module
         """
         while not self.should_stop:
-            cs, ca = self.socket.accept()
-
             try:
+                self.socket.settimeout(2)
+                cs, ca = self.socket.accept()
                 cs.settimeout(2)
                 data = cs.recv(1024)
                 if data and data == 'done':
@@ -212,9 +213,7 @@ if __name__ == '__main__':
                     ip.src = x
                     sendp(ip / tcp, verbose=False)
 
-    with open('victory.txt') as f:
-        for line in f:
-            print line,
+    print_art('victory.txt')
     print ''
-    print 'YES THE NETWORK IS PROTECTED!'
-    print 'GOOD JOB MY CYBER WARRIORS'
+    print 'YES THE NETWORK IS PROTECTED!'.center(32)
+    print 'GOOD JOB MY CYBER WARRIORS'.center(32)
